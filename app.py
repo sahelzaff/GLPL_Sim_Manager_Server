@@ -309,4 +309,4 @@ def send_dataOveremail_email():
 
 # Main entry point to run the application
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=5000)
