@@ -1,6 +1,5 @@
 Flask
 Flask-Cors
 pyodbc
-pythoncom
 pywin32
 Werkzeug
