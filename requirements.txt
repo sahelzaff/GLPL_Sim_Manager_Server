@@ -1,6 +1,6 @@
-Flask==2.3.2
-Flask-Cors==3.0.10
-pyodbc==4.0.34
-pythoncom==1.0.2
-pywin32==302
-Werkzeug==2.3.2
+Flask
+Flask-Cors
+pyodbc
+pythoncom
+pywin32
+Werkzeug
