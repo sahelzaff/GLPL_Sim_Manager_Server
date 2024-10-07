@@ -1,6 +1,6 @@
-Flask
-Flask-Cors
-pyodbc
-pythoncom
-pywin32
-Werkzeug
+Flask,
+Flask-Cors,
+pyodbc,
+pythoncom,
+pywin32,
+Werkzeug,
