@@ -6,13 +6,18 @@ import win32com.client  # Import the win32com.client module for Outlook automati
 from routes import email_bp, approval_email_bp, percentage_email_bp
 import pythoncom
 from auth import auth_bp
-
+import logging
+import os
 
 # Initialize Flask app
 app = Flask(__name__)
 
 # Enable CORS for the app
 CORS(app)
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 
 # Register blueprints
 app.register_blueprint(email_bp)
@@ -309,4 +314,6 @@ def send_dataOveremail_email():
 
 # Main entry point to run the application
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
+
