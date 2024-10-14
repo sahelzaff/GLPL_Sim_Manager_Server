@@ -8,12 +8,17 @@ import pythoncom
 from auth import auth_bp
 import logging
 import os
+from flask_caching import Cache
+from functools import wraps
 
 # Initialize Flask app
 app = Flask(__name__)
 
 # Enable CORS for the app
 CORS(app)
+
+# Configure caching
+cache = Cache(app, config={'CACHE_TYPE': 'simple'})
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -67,18 +72,76 @@ def row_to_dict(row):
         'Current_User_Email': row.Current_User_Email,
     }
 
+# Add a caching decorator
+def cached_endpoint(timeout=300):
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            cache_key = request.full_path
+            cached_response = cache.get(cache_key)
+            if cached_response:
+                return cached_response
+            response = f(*args, **kwargs)
+            cache.set(cache_key, response, timeout=timeout)
+            return response
+        return decorated_function
+    return decorator
+
 # Create API endpoints
 
 # GET: Retrieve all users
 @app.route('/api/users', methods=['GET'])
+@cached_endpoint(timeout=60)  # Cache for 1 minute
 def get_users():
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 25, type=int)
+    search_term = request.args.get('searchTerm', '')
+    search_param = request.args.get('searchParam', 'Name')
+    status_filter = request.args.get('statusFilter', '')
+
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM Data_table2")
+
+    # Build the SQL query based on search parameters
+    query = "SELECT * FROM Data_table2 WHERE 1=1"
+    params = []
+
+    if search_term:
+        if search_param == 'Name':
+            query += " AND Current_User_Name LIKE ?"
+            params.append(f'%{search_term}%')
+        elif search_param == 'Phone Number':
+            query += " AND Cell_no LIKE ?"
+            params.append(f'%{search_term}%')
+        elif search_param == 'Sim No':
+            query += " AND SIM_No LIKE ?"
+            params.append(f'%{search_term}%')
+
+    if status_filter:
+        query += " AND Vi_Status = ?"
+        params.append(status_filter)
+
+    # Get total count for pagination
+    count_query = f"SELECT COUNT(*) FROM ({query}) AS count_query"
+    cursor.execute(count_query, params)
+    total_count = cursor.fetchone()[0]
+
+    # Add pagination
+    query += " ORDER BY Sr_no OFFSET ? ROWS FETCH NEXT ? ROWS ONLY"
+    params.extend([(page - 1) * per_page, per_page])
+
+    cursor.execute(query, params)
     rows = cursor.fetchall()
     users = [row_to_dict(row) for row in rows]
+
     conn.close()
-    return jsonify(users)
+
+    return jsonify({
+        'users': users,
+        'totalPages': (total_count + per_page - 1) // per_page,
+        'currentPage': page,
+        'totalCount': total_count
+    })
 
 # POST: Add a new user
 @app.route('/api/users', methods=['POST'])
@@ -226,9 +289,9 @@ def send_100_percent_email():
 
     try:
         # Extract the query parameters
-        recipient = request.args.get('to')  # Get the recipient email
-        subject = request.args.get('subject')  # Get the email subject
-        body = request.args.get('body')  # Get the email body
+        recipient = request.args.get('to')
+        subject = request.args.get('subject')
+        body = request.args.get('body')
 
         # Create Outlook mail object
         outlook = win32com.client.Dispatch('outlook.application')
@@ -240,15 +303,23 @@ def send_100_percent_email():
         mail.To = recipient if recipient else "recipient@example.com"  
 
         mail.Display()  # Display the mail window
-        outlook.ActiveWindow.WindowState = 2  # 2 means maximize
-        outlook.ActiveWindow.Activate()  # Bring the window to the front
-        return "90% Email Composed", 200 
+        
+        # Try to maximize the window, but don't fail if it's not possible
+        try:
+            outlook.ActiveWindow.WindowState = 2  # 2 means maximize
+            outlook.ActiveWindow.Activate()  # Bring the window to the front
+        except AttributeError:
+            # If WindowState is not available, just continue without maximizing
+            pass
+
+        return jsonify({"message": "Email Composed Successfully"}), 200 
     except Exception as e:
-        return str(e), 500
+        return jsonify({"error": str(e)}), 500
     finally:
         # Uninitialize COM
         pythoncom.CoUninitialize()
 
+# Apply similar changes to the other email routes (90% and dataOveremail)
 
 # Email route for 90% email
 @app.route('/api/email/90', methods=['GET'])
@@ -258,9 +329,9 @@ def send_90_percent_email():
 
     try:
         # Extract the query parameters
-        recipient = request.args.get('to')  # Get the recipient email
-        subject = request.args.get('subject')  # Get the email subject
-        body = request.args.get('body')  # Get the email body
+        recipient = request.args.get('to')
+        subject = request.args.get('subject')
+        body = request.args.get('body')
 
         # Create Outlook mail object
         outlook = win32com.client.Dispatch('outlook.application')
@@ -272,11 +343,18 @@ def send_90_percent_email():
         mail.To = recipient if recipient else "recipient@example.com"  
 
         mail.Display()  # Display the mail window
-        outlook.ActiveWindow.WindowState = 2  # 2 means maximize
-        outlook.ActiveWindow.Activate()  # Bring the window to the front
-        return "90% Email Composed", 200 
+        
+        # Try to maximize the window, but don't fail if it's not possible
+        try:
+            outlook.ActiveWindow.WindowState = 2  # 2 means maximize
+            outlook.ActiveWindow.Activate()  # Bring the window to the front
+        except AttributeError:
+            # If WindowState is not available, just continue without maximizing
+            pass
+
+        return jsonify({"message": "Email Composed Successfully"}), 200 
     except Exception as e:
-        return str(e), 500
+        return jsonify({"error": str(e)}), 500
     finally:
         # Uninitialize COM
         pythoncom.CoUninitialize()
@@ -288,9 +366,9 @@ def send_dataOveremail_email():
 
     try:
         # Extract the query parameters
-        recipient = request.args.get('to')  # Get the recipient email
-        subject = request.args.get('subject')  # Get the email subject
-        body = request.args.get('body')  # Get the email body
+        recipient = request.args.get('to')
+        subject = request.args.get('subject')
+        body = request.args.get('body')
 
         # Create Outlook mail object
         outlook = win32com.client.Dispatch('outlook.application')
@@ -302,18 +380,23 @@ def send_dataOveremail_email():
         mail.To = recipient if recipient else "recipient@example.com"  
 
         mail.Display()  # Display the mail window
-        outlook.ActiveWindow.WindowState = 2  # 2 means maximize
-        outlook.ActiveWindow.Activate()  # Bring the window to the front
-        return "90% Email Composed", 200 
+        
+        # Try to maximize the window, but don't fail if it's not possible
+        try:
+            outlook.ActiveWindow.WindowState = 2  # 2 means maximize
+            outlook.ActiveWindow.Activate()  # Bring the window to the front
+        except AttributeError:
+            # If WindowState is not available, just continue without maximizing
+            pass
+
+        return jsonify({"message": "Email Composed Successfully"}), 200 
     except Exception as e:
-        return str(e), 500
+        return jsonify({"error": str(e)}), 500
     finally:
         # Uninitialize COM
         pythoncom.CoUninitialize()
-
 
 # Main entry point to run the application
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
-
