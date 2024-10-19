@@ -15,7 +15,7 @@ from functools import wraps
 app = Flask(__name__)
 
 # Enable CORS for the app
-CORS(app)
+CORS(app, resources={r"/*": {"origins": ["http://localhost:3000", "http://localhost:3001", "https://glplsimmanager.netlify.app"]}})
 
 # Configure caching
 cache = Cache(app, config={'CACHE_TYPE': 'simple'})
@@ -66,6 +66,7 @@ def row_to_dict(row):
         'Updated_At': row.Updated_At,
         'Expiration_Date': row.Expiration_Date,
         'Last_Updated_By': row.Last_Updated_By,
+        'Designation': row.Designation,  # Add this line
         'Department': row.Department,
         'Reporting_Manager': row.Reporting_Manager,
         'Manager_Email': row.Manager_Email,
@@ -153,16 +154,16 @@ def add_user():
         INSERT INTO Data_table2 (Cell_no, Cost, PlanName, SIM_No, Previous_User, Current_User_Name,
                            Location, Mode, Remark, Asset_Mapping, Vi_Status, Last_Edited, 
                            Edited_By_Role, Created_At, Updated_At, Expiration_Date, 
-                           Last_Updated_By, Department, Reporting_Manager, Manager_Email, 
+                           Last_Updated_By, Department, Designation, Reporting_Manager, Manager_Email, 
                            Current_User_Email)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         data['Cell_no'], data.get('Cost'), data.get('PlanName'), data.get('SIM_No'), 
         data.get('Previous_User'), data.get('Current_User_Name'), data.get('Location'), 
         data.get('Mode'), data.get('Remark'), data.get('Asset_Mapping'), 
         data.get('Vi_Status'), data.get('Last_Edited'), data.get('Edited_By_Role'), 
         datetime.now(), datetime.now(), data.get('Expiration_Date'), 
-        data.get('Last_Updated_By'), data.get('Department'), 
+        data.get('Last_Updated_By'), data.get('Department'), data.get('Designation'), 
         data.get('Reporting_Manager'), data.get('Manager_Email'), 
         data.get('Current_User_Email')
     ))
@@ -233,9 +234,12 @@ def update_user(id):
     if 'SIM_No' in data:
         update_fields.append("SIM_No = ?")
         update_values.append(data['SIM_No'])
-    if 'Cost' in data:
-        update_fields.append("Cost = ?")
-        update_values.append(data['Cost'])
+        if 'Cost' in data:
+            update_fields.append("Cost = ?")
+            update_values.append(data['Cost'])
+    if 'Designation' in data:
+        update_fields.append("Designation = ?")
+        update_values.append(data['Designation'])
 
     # Add timestamps to update
     update_fields.append("Last_Edited = ?")
@@ -260,10 +264,11 @@ def update_user(id):
         
         conn.commit()
 
-        # Return the updated information (only the fields that were updated)
-        updated_user_info = {field.split(' = ')[0]: value for field, value in zip(update_fields, update_values[:-1])}
-        updated_user_info['Sr_no'] = id  # Include the Sr_no in the response
-        return jsonify(updated_user_info), 200
+        # Fetch the updated user data
+        cursor.execute("SELECT * FROM Data_table2 WHERE Sr_no = ?", (id,))
+        updated_user = row_to_dict(cursor.fetchone())
+
+        return jsonify(updated_user), 200
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -391,6 +396,46 @@ def send_dataOveremail_email():
 
         return jsonify({"message": "Email Composed Successfully"}), 200 
     except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        # Uninitialize COM
+        pythoncom.CoUninitialize()
+
+# Email route for approval email
+@app.route('/api/email/approval', methods=['GET'])
+def send_approval_email():
+    # Initialize COM
+    pythoncom.CoInitialize()
+
+    try:
+        # Extract the query parameters
+        recipient = request.args.get('to')
+        subject = request.args.get('subject')
+        body = request.args.get('body')
+
+        print(f"Received approval email request: To: {recipient}, Subject: {subject}, Body: {body}")
+
+        # Create Outlook mail object
+        outlook = win32com.client.Dispatch('outlook.application')
+        mail = outlook.CreateItem(0)
+
+        # Set the email details
+        mail.Subject = subject
+        mail.Body = body
+        mail.To = recipient
+
+        mail.Display()  # Display the mail window
+        
+        # Try to maximize the window, but don't fail if it's not possible
+        try:
+            outlook.ActiveWindow.WindowState = 2  # 2 means maximize
+            outlook.ActiveWindow.Activate()  # Bring the window to the front
+        except AttributeError:
+            print("Could not maximize Outlook window")
+
+        return jsonify({"message": "Approval Email Composed Successfully"}), 200 
+    except Exception as e:
+        print(f"Error in send_approval_email: {str(e)}")
         return jsonify({"error": str(e)}), 500
     finally:
         # Uninitialize COM
