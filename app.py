@@ -483,19 +483,91 @@ def server_status():
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Server Status</title>
+        <title>Server Status Dashboard</title>
+        <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
         <style>
-            body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
-            h1 { color: #333; }
-            pre { background-color: #f4f4f4; padding: 10px; border-radius: 5px; }
+            body {
+                font-family: 'Roboto', sans-serif;
+                margin: 0;
+                padding: 0;
+                background-color: #f0f2f5;
+                color: #333;
+            }
+            .container {
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 20px;
+            }
+            h1 {
+                color: #2c3e50;
+                text-align: center;
+                margin-bottom: 30px;
+            }
+            .status-card {
+                background-color: #fff;
+                border-radius: 8px;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                padding: 20px;
+                margin-bottom: 20px;
+            }
+            .status-item {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 10px;
+            }
+            .status-label {
+                font-weight: bold;
+            }
+            .status-value {
+                padding: 5px 10px;
+                border-radius: 20px;
+                color: #fff;
+            }
+            .status-active {
+                background-color: #2ecc71;
+            }
+            .status-inactive {
+                background-color: #e74c3c;
+            }
+            .logs {
+                background-color: #fff;
+                border-radius: 8px;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                padding: 20px;
+            }
+            .logs h2 {
+                color: #2c3e50;
+                margin-top: 0;
+            }
+            .logs pre {
+                background-color: #f7f9fc;
+                padding: 15px;
+                border-radius: 5px;
+                overflow-x: auto;
+                font-size: 14px;
+                line-height: 1.5;
+            }
         </style>
     </head>
     <body>
-        <h1>Server Status</h1>
-        <p><strong>Server Status:</strong> Active</p>
-        <p><strong>Database Status:</strong> {{ db_status }}</p>
-        <h2>Logs:</h2>
-        <pre>{{ logs }}</pre>
+        <div class="container">
+            <h1>Server Status Dashboard</h1>
+            <div class="status-card">
+                <div class="status-item">
+                    <span class="status-label">Server Status:</span>
+                    <span class="status-value status-active">Active</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Database Status:</span>
+                    <span class="status-value {{ 'status-active' if db_status == 'Connected' else 'status-inactive' }}">{{ db_status }}</span>
+                </div>
+            </div>
+            <div class="logs">
+                <h2>Recent Logs</h2>
+                <pre>{{ logs }}</pre>
+            </div>
+        </div>
         <script>
             setTimeout(function(){ location.reload(); }, 5000);
         </script>
