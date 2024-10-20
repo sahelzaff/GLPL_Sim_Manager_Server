@@ -15,7 +15,7 @@ from functools import wraps
 app = Flask(__name__)
 
 # Enable CORS for the app
-CORS(app, resources={r"/*": {"origins": ["http://localhost:3000", "http://localhost:3001", "https://glplsimmanager.netlify.app"]}})
+CORS(app, resources={r"/*": {"origins": ["http://192.168.45.129:3010",  "http://localhost:3000"]}})
 
 # Configure caching
 cache = Cache(app, config={'CACHE_TYPE': 'simple'})
@@ -42,8 +42,13 @@ db_connection_string = (
 
 # Function to get a database connection
 def get_db_connection():
-    conn = pyodbc.connect(db_connection_string)
-    return conn
+    try:
+        conn = pyodbc.connect(db_connection_string)
+        logger.info("Database connection established successfully.")
+        return conn
+    except pyodbc.Error as e:
+        logger.error(f"Failed to connect to the database: {str(e)}")
+        return None
 
 # Helper function to convert row to dict
 def row_to_dict(row):
@@ -101,6 +106,9 @@ def get_users():
     status_filter = request.args.get('statusFilter', '')
 
     conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Database connection failed'}), 500
+    
     cursor = conn.cursor()
 
     # Build the SQL query based on search parameters
@@ -149,6 +157,9 @@ def get_users():
 def add_user():
     data = request.json
     conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Database connection failed'}), 500
+    
     cursor = conn.cursor()
     cursor.execute(f"""
         INSERT INTO Data_table2 (Cell_no, Cost, PlanName, SIM_No, Previous_User, Current_User_Name,
@@ -178,6 +189,9 @@ def add_user():
 @app.route('/api/users/<int:id>', methods=['GET'])
 def get_user(id):
     conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Database connection failed'}), 500
+    
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM Data_table2 WHERE Sr_no = ?", (id,))
     row = cursor.fetchone()
@@ -256,6 +270,9 @@ def update_user(id):
     
     try:
         conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'Database connection failed'}), 500
+        
         cursor = conn.cursor()
         
         cursor.execute(f"""
@@ -280,6 +297,9 @@ def update_user(id):
 @app.route('/api/users/<int:id>', methods=['DELETE'])
 def delete_user(id):
     conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Database connection failed'}), 500
+    
     cursor = conn.cursor()
     cursor.execute("DELETE FROM Data_table2 WHERE Sr_no = ?", (id,))
     conn.commit()
@@ -442,6 +462,6 @@ def send_approval_email():
         pythoncom.CoUninitialize()
 
 # Main entry point to run the application
-if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
+if __name__ == "__main__":
+    from waitress import serve
+    serve(app, host="0.0.0.0", port=5021)
