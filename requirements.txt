@@ -2,3 +2,6 @@ Flask
 Flask-Cors
 pyodbc
 Werkzeug
+jwt
+flask-caching
+pywin32

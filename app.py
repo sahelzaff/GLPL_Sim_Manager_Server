@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, render_template_string
 from flask_cors import CORS
 import pyodbc
 from datetime import datetime
@@ -10,6 +10,7 @@ import logging
 import os
 from flask_caching import Cache
 from functools import wraps
+from io import StringIO
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -23,6 +24,11 @@ cache = Cache(app, config={'CACHE_TYPE': 'simple'})
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Create a StringIO object to capture logs
+log_capture_string = StringIO()
+ch = logging.StreamHandler(log_capture_string)
+ch.setLevel(logging.INFO)
+logger.addHandler(ch)
 
 # Register blueprints
 app.register_blueprint(email_bp)
@@ -44,10 +50,10 @@ db_connection_string = (
 def get_db_connection():
     try:
         conn = pyodbc.connect(db_connection_string)
-        logger.info("Database connection established successfully.")
+        logger.info(f"Database connection established successfully at {datetime.now()}.")
         return conn
     except pyodbc.Error as e:
-        logger.error(f"Failed to connect to the database: {str(e)}")
+        logger.error(f"Failed to connect to the database at {datetime.now()}: {str(e)}")
         return None
 
 # Helper function to convert row to dict
@@ -99,6 +105,7 @@ def cached_endpoint(timeout=300):
 @app.route('/api/users', methods=['GET'])
 @cached_endpoint(timeout=60)  # Cache for 1 minute
 def get_users():
+    logger.info(f"API hit: GET /api/users at {datetime.now()}")
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 25, type=int)
     search_term = request.args.get('searchTerm', '')
@@ -461,7 +468,45 @@ def send_approval_email():
         # Uninitialize COM
         pythoncom.CoUninitialize()
 
+@app.route('/status', methods=['GET'])
+def server_status():
+    # Check database connection
+    db_status = "Connected" if get_db_connection() else "Disconnected"
+    
+    # Get captured logs
+    log_contents = log_capture_string.getvalue()
+    
+    # HTML template
+    html_template = """
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Server Status</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
+            h1 { color: #333; }
+            pre { background-color: #f4f4f4; padding: 10px; border-radius: 5px; }
+        </style>
+    </head>
+    <body>
+        <h1>Server Status</h1>
+        <p><strong>Server Status:</strong> Active</p>
+        <p><strong>Database Status:</strong> {{ db_status }}</p>
+        <h2>Logs:</h2>
+        <pre>{{ logs }}</pre>
+        <script>
+            setTimeout(function(){ location.reload(); }, 5000);
+        </script>
+    </body>
+    </html>
+    """
+    
+    return render_template_string(html_template, db_status=db_status, logs=log_contents)
+
 # Main entry point to run the application
 if __name__ == "__main__":
     from waitress import serve
     serve(app, host="0.0.0.0", port=5021)
+
