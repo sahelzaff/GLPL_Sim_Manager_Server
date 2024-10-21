@@ -3,7 +3,6 @@ from flask_cors import CORS
 import pyodbc
 from datetime import datetime
 from routes import email_bp, approval_email_bp, percentage_email_bp
-import pythoncom
 from auth import auth_bp
 import logging
 import os

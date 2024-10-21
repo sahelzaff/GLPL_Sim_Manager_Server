@@ -62,38 +62,45 @@ def register():
 # Route to login a user
 @auth_bp.route('/api/login', methods=['POST'])
 def login():
-    data = request.json
-    username = data.get('username')
-    password = data.get('password')
+    try:
+        data = request.json
+        username = data.get('username')
+        password = data.get('password')
 
-    if not username or not password:
-        return jsonify({'error': 'Username and password are required'}), 400
+        if not username or not password:
+            return jsonify({'error': 'Username and password are required'}), 400
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'Database connection failed'}), 500
 
-    # Retrieve user by username
-    cursor.execute("SELECT id, password_hash FROM users_phonebook_web WHERE username = ?", (username,))
-    user = cursor.fetchone()
+        cursor = conn.cursor()
 
-    if user is None:
-        return jsonify({'error': 'User not found'}), 404
+        # Retrieve user by username
+        cursor.execute("SELECT id, password_hash FROM users_phonebook_web WHERE username = ?", (username,))
+        user = cursor.fetchone()
 
-    user_id, password_hash = user
+        if user is None:
+            return jsonify({'error': 'User not found'}), 404
 
-    # Check the password
-    if not check_password_hash(password_hash, password):
-        return jsonify({'error': 'Invalid password'}), 401
+        user_id, password_hash = user
 
-    # Update last login timestamp
-    cursor.execute("UPDATE users_phonebook_web SET last_login = ? WHERE id = ?", (datetime.now(), user_id))
-    conn.commit()
-    conn.close()
+        # Check the password
+        if not check_password_hash(password_hash, password):
+            return jsonify({'error': 'Invalid password'}), 401
 
-    # Generate token
-    token = generate_token(user_id)
+        # Update last login timestamp
+        cursor.execute("UPDATE users_phonebook_web SET last_login = ? WHERE id = ?", (datetime.now(), user_id))
+        conn.commit()
+        conn.close()
 
-    return jsonify({'message': 'Login successful', 'token': token}), 200
+        # Generate token
+        token = generate_token(user_id)
+
+        return jsonify({'message': 'Login successful', 'token': token}), 200
+    except Exception as e:
+        print(f"Login error: {str(e)}")  # Log the error
+        return jsonify({'error': 'An unexpected error occurred'}), 500
 
 # New route to verify a token
 @auth_bp.route('/api/verify-token', methods=['POST'])
