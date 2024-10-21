@@ -4,4 +4,4 @@ pyodbc
 Werkzeug
 jwt
 flask-caching
-pywin32
+

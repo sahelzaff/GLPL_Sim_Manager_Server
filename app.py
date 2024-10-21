@@ -1,8 +1,7 @@
-from flask import Flask, jsonify, request, render_template_string
+from flask import Flask, jsonify, request, render_template_string, redirect
 from flask_cors import CORS
 import pyodbc
 from datetime import datetime
-import win32com.client  # Import the win32com.client module for Outlook automation
 from routes import email_bp, approval_email_bp, percentage_email_bp
 import pythoncom
 from auth import auth_bp
@@ -11,6 +10,7 @@ import os
 from flask_caching import Cache
 from functools import wraps
 from io import StringIO
+from urllib.parse import quote
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -40,7 +40,7 @@ app.register_blueprint(auth_bp)
 # Configure your database connection
 db_connection_string = (
     'DRIVER={ODBC Driver 17 for SQL Server};'
-    'SERVER=192.168.45.1,1433;'
+    'SERVER= GLPL-MUM-LAP-74;'
     'DATABASE=glpl_phonebook;'
     'UID=sqlserversahel;'
     'PWD=Sahel@2003'
@@ -316,157 +316,56 @@ def delete_user(id):
 # Email route for 100% email
 @app.route('/api/email/100', methods=['GET'])
 def send_100_percent_email():
-    # Initialize COM
-    pythoncom.CoInitialize()
+    recipient = request.args.get('to')
+    subject = request.args.get('subject')
+    body = request.args.get('body')
 
-    try:
-        # Extract the query parameters
-        recipient = request.args.get('to')
-        subject = request.args.get('subject')
-        body = request.args.get('body')
+    encoded_subject = quote(subject)
+    encoded_body = quote(body)
 
-        # Create Outlook mail object
-        outlook = win32com.client.Dispatch('outlook.application')
-        mail = outlook.CreateItem(0)
-
-        # Set the email details
-        mail.Subject = subject if subject else "100% Data Usage Alert"
-        mail.Body = body if body else "Your data usage has reached 100%."
-        mail.To = recipient if recipient else "recipient@example.com"  
-
-        mail.Display()  # Display the mail window
-        
-        # Try to maximize the window, but don't fail if it's not possible
-        try:
-            outlook.ActiveWindow.WindowState = 2  # 2 means maximize
-            outlook.ActiveWindow.Activate()  # Bring the window to the front
-        except AttributeError:
-            # If WindowState is not available, just continue without maximizing
-            pass
-
-        return jsonify({"message": "Email Composed Successfully"}), 200 
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    finally:
-        # Uninitialize COM
-        pythoncom.CoUninitialize()
-
-# Apply similar changes to the other email routes (90% and dataOveremail)
+    mailto_link = f"mailto:{recipient}?subject={encoded_subject}&body={encoded_body}"
+    return redirect(mailto_link)
 
 # Email route for 90% email
 @app.route('/api/email/90', methods=['GET'])
 def send_90_percent_email():
-    # Initialize COM
-    pythoncom.CoInitialize()
+    recipient = request.args.get('to')
+    subject = request.args.get('subject')
+    body = request.args.get('body')
 
-    try:
-        # Extract the query parameters
-        recipient = request.args.get('to')
-        subject = request.args.get('subject')
-        body = request.args.get('body')
+    encoded_subject = quote(subject)
+    encoded_body = quote(body)
 
-        # Create Outlook mail object
-        outlook = win32com.client.Dispatch('outlook.application')
-        mail = outlook.CreateItem(0)
-
-        # Set the email details
-        mail.Subject = subject if subject else "90% Data Usage Alert"
-        mail.Body = body if body else "Your data usage has reached 90%."
-        mail.To = recipient if recipient else "recipient@example.com"  
-
-        mail.Display()  # Display the mail window
-        
-        # Try to maximize the window, but don't fail if it's not possible
-        try:
-            outlook.ActiveWindow.WindowState = 2  # 2 means maximize
-            outlook.ActiveWindow.Activate()  # Bring the window to the front
-        except AttributeError:
-            # If WindowState is not available, just continue without maximizing
-            pass
-
-        return jsonify({"message": "Email Composed Successfully"}), 200 
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    finally:
-        # Uninitialize COM
-        pythoncom.CoUninitialize()
+    mailto_link = f"mailto:{recipient}?subject={encoded_subject}&body={encoded_body}"
+    return redirect(mailto_link)
 
 @app.route('/api/email/dataOveremail', methods=['GET'])
 def send_dataOveremail_email():
-    # Initialize COM
-    pythoncom.CoInitialize()
+    recipient = request.args.get('to')
+    subject = request.args.get('subject')
+    body = request.args.get('body')
 
-    try:
-        # Extract the query parameters
-        recipient = request.args.get('to')
-        subject = request.args.get('subject')
-        body = request.args.get('body')
+    encoded_subject = quote(subject)
+    encoded_body = quote(body)
 
-        # Create Outlook mail object
-        outlook = win32com.client.Dispatch('outlook.application')
-        mail = outlook.CreateItem(0)
-
-        # Set the email details
-        mail.Subject = subject if subject else "90% Data Usage Alert"
-        mail.Body = body if body else "Your data usage has reached 90%."
-        mail.To = recipient if recipient else "recipient@example.com"  
-
-        mail.Display()  # Display the mail window
-        
-        # Try to maximize the window, but don't fail if it's not possible
-        try:
-            outlook.ActiveWindow.WindowState = 2  # 2 means maximize
-            outlook.ActiveWindow.Activate()  # Bring the window to the front
-        except AttributeError:
-            # If WindowState is not available, just continue without maximizing
-            pass
-
-        return jsonify({"message": "Email Composed Successfully"}), 200 
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    finally:
-        # Uninitialize COM
-        pythoncom.CoUninitialize()
+    mailto_link = f"mailto:{recipient}?subject={encoded_subject}&body={encoded_body}"
+    return redirect(mailto_link)
 
 # Email route for approval email
 @app.route('/api/email/approval', methods=['GET'])
 def send_approval_email():
-    # Initialize COM
-    pythoncom.CoInitialize()
+    recipient = request.args.get('to')
+    subject = request.args.get('subject')
+    body = request.args.get('body')
 
-    try:
-        # Extract the query parameters
-        recipient = request.args.get('to')
-        subject = request.args.get('subject')
-        body = request.args.get('body')
+    print(f"Received approval email request: To: {recipient}, Subject: {subject}, Body: {body}")
 
-        print(f"Received approval email request: To: {recipient}, Subject: {subject}, Body: {body}")
+    # Encode the subject and body
+    encoded_subject = quote(subject)
+    encoded_body = quote(body)
 
-        # Create Outlook mail object
-        outlook = win32com.client.Dispatch('outlook.application')
-        mail = outlook.CreateItem(0)
-
-        # Set the email details
-        mail.Subject = subject
-        mail.Body = body
-        mail.To = recipient
-
-        mail.Display()  # Display the mail window
-        
-        # Try to maximize the window, but don't fail if it's not possible
-        try:
-            outlook.ActiveWindow.WindowState = 2  # 2 means maximize
-            outlook.ActiveWindow.Activate()  # Bring the window to the front
-        except AttributeError:
-            print("Could not maximize Outlook window")
-
-        return jsonify({"message": "Approval Email Composed Successfully"}), 200 
-    except Exception as e:
-        print(f"Error in send_approval_email: {str(e)}")
-        return jsonify({"error": str(e)}), 500
-    finally:
-        # Uninitialize COM
-        pythoncom.CoUninitialize()
+    mailto_link = f"mailto:{recipient}?subject={encoded_subject}&body={encoded_body}"
+    return redirect(mailto_link)
 
 @app.route('/status', methods=['GET'])
 def server_status():
