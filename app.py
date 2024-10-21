@@ -40,10 +40,10 @@ app.register_blueprint(auth_bp)
 # Configure your database connection
 db_connection_string = (
     'DRIVER={ODBC Driver 17 for SQL Server};'
-    'SERVER= GLPL-MUM-LAP-74;'
+    'SERVER=192.168.45.129;'
     'DATABASE=glpl_phonebook;'
-    'UID=sqlserversahel;'
-    'PWD=Sahel@2003'
+    'UID=sa;'
+    'PWD=hiba@2002'
 )
 
 # Function to get a database connection
