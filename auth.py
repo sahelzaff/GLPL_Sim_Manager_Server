@@ -67,11 +67,14 @@ def login():
         username = data.get('username')
         password = data.get('password')
 
+        print(f"Login attempt for username: {username}")  # Log the username
+
         if not username or not password:
             return jsonify({'error': 'Username and password are required'}), 400
 
         conn = get_db_connection()
         if not conn:
+            print("Database connection failed")  # Log connection failure
             return jsonify({'error': 'Database connection failed'}), 500
 
         cursor = conn.cursor()
@@ -81,12 +84,14 @@ def login():
         user = cursor.fetchone()
 
         if user is None:
+            print(f"User not found: {username}")  # Log user not found
             return jsonify({'error': 'User not found'}), 404
 
         user_id, password_hash = user
 
         # Check the password
         if not check_password_hash(password_hash, password):
+            print(f"Invalid password for user: {username}")  # Log invalid password
             return jsonify({'error': 'Invalid password'}), 401
 
         # Update last login timestamp
@@ -97,10 +102,11 @@ def login():
         # Generate token
         token = generate_token(user_id)
 
+        print(f"Login successful for user: {username}")  # Log successful login
         return jsonify({'message': 'Login successful', 'token': token}), 200
     except Exception as e:
-        print(f"Login error: {str(e)}")  # Log the error
-        return jsonify({'error': 'An unexpected error occurred'}), 500
+        print(f"Login error: {str(e)}")  # Log the full error
+        return jsonify({'error': 'An unexpected error occurred', 'details': str(e)}), 500
 
 # New route to verify a token
 @auth_bp.route('/api/verify-token', methods=['POST'])

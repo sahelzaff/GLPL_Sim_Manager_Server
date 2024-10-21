@@ -14,8 +14,8 @@ db_connection_string = (
 def get_db_connection():
     try:
         conn = pyodbc.connect(db_connection_string)
-        print("Database connected successfully")
+        print("Database connection successful")
         return conn
     except pyodbc.Error as e:
-        print(f"Database connection failed: {str(e)}")
+        print(f"Database connection error: {str(e)}")  # Log connection error
         return None
